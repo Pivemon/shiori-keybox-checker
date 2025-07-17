@@ -2,57 +2,72 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Android Keybox Checker</title>
+  <title>Keybox Checker Web</title>
   <style>
-    body { font-family: sans-serif; padding: 2em; max-width: 600px; margin: auto; }
-    .result { margin-top: 1em; white-space: pre-line; background: #f2f2f2; padding: 1em; border-radius: 6px; }
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 2em; }
+    .result { background: #f2f2f2; padding: 1em; border-radius: 8px; margin-top: 1em; white-space: pre-line; }
     input[type="file"] { margin-top: 1em; }
   </style>
 </head>
 <body>
   <h1>🔐 Android Keybox Checker</h1>
-  <p>Tải lên file keybox XML để kiểm tra Integrity</p>
-  <input type="file" id="xmlFile" accept=".xml">
-  <div class="result" id="result"></div>
+  <p>Upload your <code>keybox.xml</code> file:</p>
+  <input type="file" id="fileInput" accept=".xml">
+  <div class="result" id="output"></div>
 
   <script>
-    document.getElementById("xmlFile").addEventListener("change", function (e) {
-      const file = e.target.files[0];
+    document.getElementById("fileInput").addEventListener("change", function(event) {
+      const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = function (e) {
+      reader.onload = function(e) {
         const xmlText = e.target.result;
         const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, "application/xml");
+        const xmlDoc = parser.parseFromString(xmlText, "application/xml");
 
-        const entries = xml.getElementsByTagName("entry");
-        let result = {};
-
+        const entries = xmlDoc.getElementsByTagName("entry");
+        let data = {};
         for (let entry of entries) {
           const name = entry.getAttribute("name");
-          const value = entry.textContent;
-          result[name] = value;
+          const value = entry.textContent.trim();
+          data[name] = value;
         }
 
-        const summary = `
-📄 Keybox Check Result:
-• deviceIntegrity: ${result.deviceIntegrity ?? "❓ Not Found"}
-• ctsProfileMatch: ${result.ctsProfileMatch ?? "❓ Not Found"}
-• basicIntegrity: ${result.basicIntegrity ?? "❓ Not Found"}
-• verifiedBoot: ${result.verifiedBoot ?? "❓ Not Found"}
+        // Logic tương tự checker.py
+        const fields = [
+          "attestation_version", "attestation_security_level", "keymaster_version",
+          "keymaster_security_level", "attestation_challenge", "unique_id", "brand",
+          "device", "product", "manufacturer", "model", "vbmeta_digest", "boot_state",
+          "verified_boot_key", "verified_boot_hash", "os_version", "os_patchlevel",
+          "device_locked", "vendor_patchlevel", "boot_patchlevel", "system_patchlevel"
+        ];
 
-✅ Passed: ${
-          result.deviceIntegrity === "1" &&
-          result.ctsProfileMatch === "1" &&
-          result.basicIntegrity === "1" &&
-          result.verifiedBoot === "true"
-            ? "YES ✅"
-            : "NO ❌"
+        let requiredPass = [
+          "device_integrity", "basic_integrity", "cts_profile_match"
+        ];
+
+        let output = "";
+
+        // Optional info
+        for (let field of fields) {
+          if (data[field]) {
+            output += `• ${field}: ${data[field]}\n`;
+          }
         }
-        `.trim();
 
-        document.getElementById("result").textContent = summary;
+        output += "\n🔎 Integrity Checks:\n";
+        let allPass = true;
+        for (let field of requiredPass) {
+          let value = data[field];
+          let ok = (value === "1" || value === "true");
+          output += `- ${field}: ${ok ? "✅ Passed" : "❌ Failed"} (value: ${value ?? "missing"})\n`;
+          if (!ok) allPass = false;
+        }
+
+        output += `\n🎯 Final Result: ${allPass ? "✅ All Passed" : "❌ One or more failed"}`;
+
+        document.getElementById("output").textContent = output;
       };
       reader.readAsText(file);
     });
