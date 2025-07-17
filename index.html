@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Android Keybox Checker</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; max-width: 600px; margin: auto; }
+    .result { margin-top: 1em; white-space: pre-line; background: #f2f2f2; padding: 1em; border-radius: 6px; }
+    input[type="file"] { margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h1>🔐 Android Keybox Checker</h1>
+  <p>Tải lên file keybox XML để kiểm tra Integrity</p>
+  <input type="file" id="xmlFile" accept=".xml">
+  <div class="result" id="result"></div>
+
+  <script>
+    document.getElementById("xmlFile").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const xmlText = e.target.result;
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlText, "application/xml");
+
+        const entries = xml.getElementsByTagName("entry");
+        let result = {};
+
+        for (let entry of entries) {
+          const name = entry.getAttribute("name");
+          const value = entry.textContent;
+          result[name] = value;
+        }
+
+        const summary = `
+📄 Keybox Check Result:
+• deviceIntegrity: ${result.deviceIntegrity ?? "❓ Not Found"}
+• ctsProfileMatch: ${result.ctsProfileMatch ?? "❓ Not Found"}
+• basicIntegrity: ${result.basicIntegrity ?? "❓ Not Found"}
+• verifiedBoot: ${result.verifiedBoot ?? "❓ Not Found"}
+
+✅ Passed: ${
+          result.deviceIntegrity === "1" &&
+          result.ctsProfileMatch === "1" &&
+          result.basicIntegrity === "1" &&
+          result.verifiedBoot === "true"
+            ? "YES ✅"
+            : "NO ❌"
+        }
+        `.trim();
+
+        document.getElementById("result").textContent = summary;
+      };
+      reader.readAsText(file);
+    });
+  </script>
+</body>
+</html>
